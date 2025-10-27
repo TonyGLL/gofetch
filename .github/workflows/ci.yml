@@ -38,12 +38,7 @@ jobs:
       # We use a dedicated action for golangci-lint. It's faster because it handles
       # caching of the linter binary and provides better annotations in pull requests.
       - name: Run linter
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
-
-          # Optional: run only new issues in pull requests
-          # only-new-issues: true
+        uses: golangci/golangci-lint-action@v8
 
       # 4. Run the tests.
       # This command is executed using the Makefile, ensuring consistency between
