@@ -31,8 +31,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '^1.24'
-          cache: true
+          go-version-file: 'go.mod'
+          cache: true # Enables caching for Go modules
 
       # 3. Run the linter.
       # We use a dedicated action for golangci-lint. It's faster because it handles
