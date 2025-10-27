@@ -40,7 +40,6 @@ linters:
     - intrange
     - ineffassign
     - lll
-    - misspell
     - nakedret
     - noctx
     - nolintlint
