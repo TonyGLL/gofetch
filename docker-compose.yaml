@@ -1,0 +1,17 @@
+services:
+  mongodb:
+    image: mongo:latest # Or a specific version like mongo:6.0
+    container_name: gofetch_mongodb
+    ports:
+      - "27017:27017" # Map host port 27017 to container port 27017
+    volumes:
+      - mongodb_data:/data/db # Persist data in a named volume
+    environment:
+      # Set root username and password for security (highly recommended)
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=password
+    restart: unless-stopped # Restart the container unless explicitly stopped
+
+volumes:
+  mongodb_data:
+    driver: local
