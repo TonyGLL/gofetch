@@ -1,0 +1,20 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "go build -o ./tmp/gofetch ."
+  bin = "./tmp/gofetch"
+  full_bin = "./tmp/gofetch"
+  include_ext = ["go", "tpl", "tmpl", "html"]
+  exclude_dir = ["assets", "tmp", "vendor", "testdata"]
+  log = "air_errors.log"
+  delay = 1000 # ms
+
+[log]
+  time = true
+
+[color]
+  main = "yellow"
+  watcher = "cyan"
+  build = "blue"
+  runner = "green"
