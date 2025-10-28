@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/TonyGLL/gofetch/cmd/indexer"
+)
 
 func main() {
-	fmt.Println("Example")
+	indexer.Execute()
+	fmt.Println("Indexer has finished execution.")
 }
