@@ -26,7 +26,7 @@ func New(stopwords []string) *Analyzer {
 	}
 }
 
-func (a *Analyzer) Analize(text string) []string {
+func (a *Analyzer) Analyze(text string) []string {
 	// Tokenize input text
 	words := tokenize(text)
 
@@ -54,7 +54,7 @@ func normalize(word string) string {
 	lowerWord := strings.ToLower(word)
 	var builder strings.Builder
 	for _, r := range lowerWord {
-		// Conserva letras y el guion
+		// Keep letters and hyphen
 		if unicode.IsLetter(r) || r == '-' {
 			builder.WriteRune(r)
 		}

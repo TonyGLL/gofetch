@@ -6,34 +6,34 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Document representa la estructura de un documento web guardado en la colección 'documents'.
-// Es el contenido original que ha sido rastreado e indexado.
+// Document represents the structure of a web document saved in the 'documents' collection.
+// It is the original content that has been crawled and indexed.
 type Document struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty"`
 	URL       string             `bson:"url"`
-	Content   string             `bson:"content"` // Podríamos omitir esto en producción para ahorrar espacio
+	Content   string             `bson:"content"` // We could omit this in production to save space
 	IndexedAt time.Time          `bson:"indexed_at"`
 }
 
-// Posting representa una única aparición de un término en un documento.
-// No es una colección de nivel superior, sino un sub-documento dentro de InvertedIndexEntry.
+// Posting represents a single occurrence of a term in a document.
+// It is not a top-level collection, but a sub-document within InvertedIndexEntry.
 type Posting struct {
 	DocID     primitive.ObjectID `bson:"doc_id"`
-	Frequency int                `bson:"frequency"` // La frecuencia del término (TF) en este documento
+	Frequency int                `bson:"frequency"` // The frequency of the term (TF) in this document
 }
 
-// InvertedIndexEntry representa una entrada en el índice invertido.
-// Cada documento corresponde a un término único y contiene una lista de todos los
-// documentos donde aparece ese término.
+// InvertedIndexEntry represents an entry in the inverted index.
+// Each document corresponds to a unique term and contains a list of all the
+// documents where that term appears.
 type InvertedIndexEntry struct {
-	// Nota: No usamos un ObjectID aquí. El término en sí es la clave natural.
-	// Se debe crear un índice único en MongoDB sobre este campo para un rendimiento óptimo.
+	// Note: We do not use an ObjectID here. The term itself is the natural key.
+	// A unique index should be created in MongoDB on this field for optimal performance.
 	Term     string    `bson:"term"`
 	Postings []Posting `bson:"postings"`
 }
 
-// IndexStats representa las estadísticas globales del índice.
-// Normalmente, solo habrá un documento de este tipo en la colección 'stats'.
+// IndexStats represents the global statistics of the index.
+// Normally, there will only be one document of this type in the 'stats' collection.
 type IndexStats struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty"`
 	TotalDocuments int64              `bson:"total_documents"`

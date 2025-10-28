@@ -8,13 +8,13 @@ import (
 )
 
 type testCase struct {
-	name           string   // Nombre descriptivo del caso de prueba
-	stopwords      []string // La configuración del Analyzer a probar
-	inputText      string   // El texto de entrada a analizar
-	expectedTokens []string // El resultado exacto que esperamos
+	name           string   // Descriptive name of the test case
+	stopwords      []string // The Analyzer configuration to test
+	inputText      string   // The input text to analyze
+	expectedTokens []string // The exact result we expect
 }
 
-func TestAnalyzer_Analize(t *testing.T) {
+func TestAnalyzer_Analyze(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:           "Spanish text with Spanish stopwords",
@@ -51,7 +51,7 @@ func TestAnalyzer_Analize(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			analyzer := New(tc.stopwords)
-			tokens := analyzer.Analize(tc.inputText)
+			tokens := analyzer.Analyze(tc.inputText)
 
 			if !reflect.DeepEqual(tokens, tc.expectedTokens) {
 				t.Errorf("Expected tokens %v, but got %v", tc.expectedTokens, tokens)
