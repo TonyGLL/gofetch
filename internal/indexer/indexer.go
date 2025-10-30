@@ -19,7 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// indexPayload es la estructura de datos que los workers envían al writer.
+// indexPayload is the data structure that workers send to the writer.
 type indexPayload struct {
 	Doc       storage.Document
 	Freqs     map[string]int
@@ -27,13 +27,13 @@ type indexPayload struct {
 	FilePath  string
 }
 
-// Indexer encapsula la lógica de indexación.
+// Indexer encapsulates the indexing logic.
 type Indexer struct {
 	analyzer    *analysis.Analyzer
 	mongo_store *storage.MongoStore
 }
 
-// NewIndexer crea una nueva instancia del Indexer.
+// NewIndexer creates a new Indexer instance.
 func NewIndexer(analyzer *analysis.Analyzer, mongo_store *storage.MongoStore) *Indexer {
 	return &Indexer{
 		analyzer:    analyzer,
@@ -41,7 +41,7 @@ func NewIndexer(analyzer *analysis.Analyzer, mongo_store *storage.MongoStore) *I
 	}
 }
 
-// IndexDirectory realiza el pipeline concurrente para indexar archivos de un directorio.
+// IndexDirectory runs the concurrent pipeline to index files in a directory.
 func (idx *Indexer) IndexDirectory(dirPath string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -53,17 +53,17 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 	var wg sync.WaitGroup
 	workerCount := runtime.NumCPU()
 
-	// 1. Iniciar Workers
+	// 1. Start workers
 	wg.Add(workerCount)
 	for i := 0; i < workerCount; i++ {
 		go idx.worker(ctx, &wg, jobs, results)
 	}
 
-	// 2. Iniciar Writer
+	// 2. Start writer
 	writeDone := make(chan struct{})
 	go idx.writer(ctx, results, errCh, cancel, writeDone)
 
-	// 3. Iniciar Producer
+	// 3. Start producer
 	go func() {
 		defer close(jobs)
 		walkErr := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
@@ -90,7 +90,7 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 		}
 	}()
 
-	// 4. Esperar y Sincronizar
+	// 4. Wait and synchronize
 	wg.Wait()
 	close(results)
 
@@ -107,7 +107,7 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 	}
 }
 
-// worker es la lógica que ejecuta cada goroutine del pool.
+// worker is the logic executed by each goroutine in the pool.
 func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- indexPayload) {
 	defer wg.Done()
 	for path := range jobs {
@@ -154,7 +154,7 @@ func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan 
 	}
 }
 
-// writer consume los resultados y los escribe en MongoDB en lotes.
+// writer consumes results and writes them to MongoDB in batches.
 func (idx *Indexer) writer(ctx context.Context, results <-chan indexPayload, errCh chan<- error, cancel context.CancelFunc, done chan<- struct{}) {
 	defer close(done)
 
@@ -175,11 +175,11 @@ func (idx *Indexer) writer(ctx context.Context, results <-chan indexPayload, err
 			cancel()
 		} else {
 			totalDocsInBatch = int64(len(batch))
-			// Actualizar stats de forma incremental
+			// Incrementally update stats
 			if err := idx.mongo_store.UpdateIndexStats(context.Background(), totalDocsInBatch); err != nil {
 				fmt.Fprintf(os.Stderr, "warning: failed to update index stats: %v\n", err)
 			}
-			batch = batch[:0] // Resetear el lote
+			batch = batch[:0] // Reset the batch
 		}
 	}
 
@@ -189,7 +189,7 @@ func (idx *Indexer) writer(ctx context.Context, results <-chan indexPayload, err
 			return
 		case payload, ok := <-results:
 			if !ok {
-				flushBatch() // Escribir el último lote
+				flushBatch() // Write the last batch
 				return
 			}
 			batch = append(batch, payload)
@@ -203,7 +203,7 @@ func (idx *Indexer) writer(ctx context.Context, results <-chan indexPayload, err
 	}
 }
 
-// writeBatch construye y ejecuta las operaciones BulkWrite para un lote de payloads.
+// writeBatch builds and executes BulkWrite operations for a batch of payloads.
 func (idx *Indexer) writeBatch(ctx context.Context, batch []indexPayload) error {
 	if len(batch) == 0 {
 		return nil
@@ -243,7 +243,7 @@ func (idx *Indexer) writeBatch(ctx context.Context, batch []indexPayload) error 
 	return nil
 }
 
-// reportError envía un error al canal de errores sin bloquearse.
+// reportError sends an error to the error channel without blocking.
 func reportError(errCh chan<- error, err error) {
 	select {
 	case errCh <- err:

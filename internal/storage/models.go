@@ -6,7 +6,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Document (sin cambios)
+// Document (no changes)
 type Document struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty"`
 	URL       string             `bson:"url"`
@@ -14,25 +14,25 @@ type Document struct {
 	IndexedAt time.Time          `bson:"indexed_at"`
 }
 
-// Posting (con el campo Positions añadido)
+// Posting (with the Positions field added)
 type Posting struct {
 	DocID     primitive.ObjectID `bson:"doc_id"`
-	Frequency int                `bson:"tf"`        // Cambiado a 'tf' por convención (term frequency)
-	Positions []int              `bson:"positions"` // AÑADIDO: para búsquedas de frases
+	Frequency int                `bson:"tf"`        // Changed to 'tf' by convention (term frequency)
+	Positions []int              `bson:"positions"` // ADDED: for phrase searches
 }
 
-// InvertedIndexEntry (con el campo DF añadido)
+// InvertedIndexEntry (with the DF field added)
 type InvertedIndexEntry struct {
-	// Usamos el término como el _id para búsquedas más rápidas y para garantizar unicidad.
+	// We use the term as the _id for faster lookups and to ensure uniqueness.
 	Term     string    `bson:"_id"`
 	Postings []Posting `bson:"postings"`
-	DF       int       `bson:"df"` // AÑADIDO: Document Frequency
+	DF       int       `bson:"df"` // ADDED: Document Frequency
 }
 
-// IndexStats (sin cambios)
+// IndexStats (no changes)
 type IndexStats struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty"`
 	TotalDocuments int64              `bson:"total_documents"`
-	TotalTerms     int64              `bson:"total_terms"` // Este campo es más complejo de calcular, nos centraremos en TotalDocuments
+	TotalTerms     int64              `bson:"total_terms"` // This field is more complex to compute; we'll focus on TotalDocuments
 	LastIndexedAt  time.Time          `bson:"last_indexed_at"`
 }

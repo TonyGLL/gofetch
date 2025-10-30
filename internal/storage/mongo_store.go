@@ -141,17 +141,17 @@ func (s *MongoStore) UpdateIndexStats(ctx context.Context, totalDocs int64) erro
 	return nil // Placeholder
 }
 
-// BulkWriteDocuments ejecuta una operación de escritura masiva en la colección de documentos.
+// BulkWriteDocuments performs a bulk write operation on the documents collection.
 func (s *MongoStore) BulkWriteDocuments(ctx context.Context, models []mongo.WriteModel) error {
 	if len(models) == 0 {
 		return nil
 	}
-	opts := options.BulkWrite().SetOrdered(false) // No ordenado para mayor rendimiento
+	opts := options.BulkWrite().SetOrdered(false) // Unordered for better performance
 	_, err := s.documetCollection.BulkWrite(ctx, models, opts)
 	return err
 }
 
-// BulkWriteInvertedIndex ejecuta una operación de escritura masiva en la colección del índice invertido.
+// BulkWriteInvertedIndex performs a bulk write operation on the inverted index collection.
 func (s *MongoStore) BulkWriteInvertedIndex(ctx context.Context, models []mongo.WriteModel) error {
 	if len(models) == 0 {
 		return nil
