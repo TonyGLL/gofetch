@@ -26,9 +26,8 @@ func Execute() {
 	flag.Parse()
 
 	an := analysis.NewEnglishAnalyzer()
-	indexer := indexer.NewIndexer(an, store)
-
-	if err := indexer.IndexDirectory(*args); err != nil {
+	idx := indexer.NewIndexer(an, store)
+	if err := idx.IndexDirectory(*args); err != nil {
 		fmt.Printf("Index error: %v\n", err)
 	} else {
 		fmt.Println("Indexing completed OK")

@@ -45,9 +45,9 @@ func NewIndexer(analyzer *analysis.Analyzer, mongo_store *storage.MongoStore) *I
 func (idx *Indexer) IndexDirectory(dirPath string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	jobs := make(chan string, 100)
-	results := make(chan indexPayload, 100)
+	n := 100
+	jobs := make(chan string, n)
+	results := make(chan indexPayload, n)
 	errCh := make(chan error, 1)
 
 	var wg sync.WaitGroup
@@ -55,7 +55,7 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 
 	// 1. Start workers
 	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go idx.worker(ctx, &wg, jobs, results)
 	}
 
@@ -155,7 +155,13 @@ func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan 
 }
 
 // writer consumes results and writes them to MongoDB in batches.
-func (idx *Indexer) writer(ctx context.Context, results <-chan indexPayload, errCh chan<- error, cancel context.CancelFunc, done chan<- struct{}) {
+func (idx *Indexer) writer(
+	ctx context.Context,
+	results <-chan indexPayload,
+	errCh chan<- error,
+	cancel context.CancelFunc,
+	done chan<- struct{},
+) {
 	defer close(done)
 
 	const BATCH_SIZE = 100
@@ -208,9 +214,9 @@ func (idx *Indexer) writeBatch(ctx context.Context, batch []indexPayload) error 
 	if len(batch) == 0 {
 		return nil
 	}
-
+	mul := 20
 	docModels := make([]mongo.WriteModel, 0, len(batch))
-	termModels := make([]mongo.WriteModel, 0, len(batch)*20)
+	termModels := make([]mongo.WriteModel, 0, len(batch)*mul)
 
 	for _, payload := range batch {
 		docModels = append(docModels, mongo.NewInsertOneModel().SetDocument(payload.Doc))
