@@ -1,4 +1,4 @@
-package indexer
+package main
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/TonyGLL/gofetch/internal/storage"
 )
 
-func Execute() {
+func main() {
 	store := storage.NewMongoStore()
 	ctx := context.Background()
 	if err := store.Connect(ctx); err != nil {

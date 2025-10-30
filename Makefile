@@ -40,16 +40,25 @@ export
 .DEFAULT_GOAL := help
 
 # .PHONY prevents conflicts with files that have the same name as targets.
-.PHONY: all build run watch clean test test-coverage lint build-indexer run-indexer
+.PHONY: all build run watch clean test test-coverage lint
 
 all: build ## Builds the binary. An alias for 'build'.
 
-build: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
+build-indexer: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
 	@echo "==> Compiling binary..."
 	@mkdir -p $(OUTPUT_DIR)
-	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/$(BINARY_NAME) .
+	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/$(BINARY_NAME) cmd/indexer/main.go
 
-run: build ## Builds and runs the binary.
+run-indexer: build-indexer ## Builds and runs the binary.
+	@echo "==> Running the application..."
+	@$(OUTPUT_DIR)/$(BINARY_NAME) -path=data
+
+build-server: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
+	@echo "==> Compiling binary..."
+	@mkdir -p $(OUTPUT_DIR)
+	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/$(BINARY_NAME) cmd/server/main.go
+
+run-server: build-server ## Builds and runs the binary.
 	@echo "==> Running the application..."
 	@$(OUTPUT_DIR)/$(BINARY_NAME)
 
@@ -105,12 +114,3 @@ air-init: ## Creates a default .air.toml configuration file if it doesn't exist.
 
 help: ## Shows this help message.
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-
-build-indexer: ## Builds the indexer binary.
-	@echo "==> Compiling indexer binary..."
-	@mkdir -p $(OUTPUT_DIR)
-	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/indexer ./cmd/indexer
-
-run-indexer: build ## Runs the indexer binary.
-	@echo "==> Running the indexer..."
-	@$(OUTPUT_DIR)/$(BINARY_NAME) -path=data
