@@ -6,37 +6,33 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// Document represents the structure of a web document saved in the 'documents' collection.
-// It is the original content that has been crawled and indexed.
+// Document (no changes)
 type Document struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty"`
 	URL       string             `bson:"url"`
-	Content   string             `bson:"content"` // We could omit this in production to save space
+	Content   string             `bson:"content"`
 	IndexedAt time.Time          `bson:"indexed_at"`
 }
 
-// Posting represents a single occurrence of a term in a document.
-// It is not a top-level collection, but a sub-document within InvertedIndexEntry.
+// Posting (with the Positions field added)
 type Posting struct {
 	DocID     primitive.ObjectID `bson:"doc_id"`
-	Frequency int                `bson:"frequency"` // The frequency of the term (TF) in this document
+	Frequency int                `bson:"tf"`        // Changed to 'tf' by convention (term frequency)
+	Positions []int              `bson:"positions"` // ADDED: for phrase searches
 }
 
-// InvertedIndexEntry represents an entry in the inverted index.
-// Each document corresponds to a unique term and contains a list of all the
-// documents where that term appears.
+// InvertedIndexEntry (with the DF field added)
 type InvertedIndexEntry struct {
-	// Note: We do not use an ObjectID here. The term itself is the natural key.
-	// A unique index should be created in MongoDB on this field for optimal performance.
-	Term     string    `bson:"term"`
+	// We use the term as the _id for faster lookups and to ensure uniqueness.
+	Term     string    `bson:"_id"`
 	Postings []Posting `bson:"postings"`
+	DF       int       `bson:"df"` // ADDED: Document Frequency
 }
 
-// IndexStats represents the global statistics of the index.
-// Normally, there will only be one document of this type in the 'stats' collection.
+// IndexStats (no changes)
 type IndexStats struct {
 	ID             primitive.ObjectID `bson:"_id,omitempty"`
 	TotalDocuments int64              `bson:"total_documents"`
-	TotalTerms     int64              `bson:"total_terms"`
+	TotalTerms     int64              `bson:"total_terms"` // This field is more complex to compute; we'll focus on TotalDocuments
 	LastIndexedAt  time.Time          `bson:"last_indexed_at"`
 }

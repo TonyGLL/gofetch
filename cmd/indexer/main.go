@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/TonyGLL/gofetch/internal/analysis"
+	"github.com/TonyGLL/gofetch/internal/indexer"
 	"github.com/TonyGLL/gofetch/internal/storage"
 )
 
@@ -22,5 +24,12 @@ func Execute() {
 
 	args := flag.String("path", "data/index", "Path to store the index data")
 	flag.Parse()
-	fmt.Println("args:", *args)
+
+	an := analysis.NewEnglishAnalyzer()
+	idx := indexer.NewIndexer(an, store)
+	if err := idx.IndexDirectory(*args); err != nil {
+		fmt.Printf("Index error: %v\n", err)
+	} else {
+		fmt.Println("Indexing completed OK")
+	}
 }

@@ -113,4 +113,4 @@ build-indexer: ## Builds the indexer binary.
 
 run-indexer: build ## Runs the indexer binary.
 	@echo "==> Running the indexer..."
-	@$(OUTPUT_DIR)/$(BINARY_NAME) -url=example.com
+	@$(OUTPUT_DIR)/$(BINARY_NAME) -path=data
