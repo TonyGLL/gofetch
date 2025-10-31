@@ -62,7 +62,7 @@ run-server: build-server ## Builds and runs the binary.
 	@echo "==> Running the application..."
 	@$(OUTPUT_DIR)/$(BINARY_NAME)
 
-watch: build ## Runs the application in development mode with live-reloading using Air.
+watch: build-server ## Runs the application in development mode with live-reloading using Air.
 	@echo "==> Starting in watch mode with Air (loading $(ENV_FILE))..."
 	@air
 
