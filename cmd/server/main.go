@@ -1,20 +1,25 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net/http"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/TonyGLL/gofetch/internal/server"
 )
 
 func main() {
-	s := &http.Server{
-		Addr:           ":8080",
-		Handler:        nil,
-		ReadTimeout:    10 * time.Second,
-		WriteTimeout:   10 * time.Second,
-		MaxHeaderBytes: 1 << 20,
+	handler := server.NewRouter()
+	srv := server.NewServer(handler, "8080")
+
+	go func() { log.Fatal(srv.Start()) }()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	<-c
+
+	if err := srv.Shutdown(); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
 	}
-	fmt.Println("Server is running on port 8080")
-	log.Fatal(s.ListenAndServe())
 }
