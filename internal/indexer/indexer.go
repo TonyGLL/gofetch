@@ -121,6 +121,21 @@ func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan 
 				continue
 			}
 			text := string(data)
+
+			// Title extraction logic
+			title := ""
+			lines := strings.Split(text, "\n")
+			for _, line := range lines {
+				trimmedLine := strings.TrimSpace(line)
+				if trimmedLine != "" {
+					title = trimmedLine
+					break
+				}
+			}
+			if title == "" {
+				title = filepath.Base(path) // Fallback to filename
+			}
+
 			tokens := idx.analyzer.Analyze(text)
 
 			freqs := make(map[string]int)
@@ -137,6 +152,7 @@ func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan 
 				Doc: storage.Document{
 					ID:        primitive.NewObjectID(),
 					URL:       path,
+					Title:     title, // Set the extracted title
 					Content:   text,
 					IndexedAt: time.Now(),
 				},
