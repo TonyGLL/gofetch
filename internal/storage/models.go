@@ -8,11 +8,13 @@ import (
 
 // Document (no changes)
 type Document struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty"`
-	URL       string             `bson:"url"`
-	Title     string             `bson:"title"`
-	Content   string             `bson:"content"`
-	IndexedAt time.Time          `bson:"indexed_at"`
+	ID         primitive.ObjectID `bson:"_id,omitempty"`
+	URL        string             `bson:"url"`
+	Title      string             `bson:"title"`
+	Content    string             `bson:"content"`
+	IndexedAt  time.Time          `bson:"indexed_at"`
+	ModifiedAt time.Time          `bson:"modified_at"`
+	FilePath   string             `bson:"file_path"`
 }
 
 // Posting (with the Positions field added)

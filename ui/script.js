@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const query = queryInput.value.trim();
+    const start = performance.now();
 
     if (!query) {
       resultsList.innerHTML = '';
@@ -20,8 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const results = await response.json();
+      const end = performance.now();
+      const duration = (end - start) / 1000;
 
-      renderResults(results);
+      renderResults(results, duration);
     } catch (error) {
       console.error('Fetch error:', error);
       resultsList.innerHTML =
@@ -29,18 +32,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  function renderResults(results) {
+  function renderResults(results, duration) {
     if (!results || results.length === 0) {
       resultsList.innerHTML = '<li>No results found.</li>';
       return;
     }
 
-    resultsList.innerHTML = results
+    const resultHeader = document.createElement('p');
+    resultHeader.textContent = `About ${results.length} results (${duration.toFixed(
+      4
+    )} seconds)`;
+    resultsList.innerHTML = '';
+    resultsList.appendChild(resultHeader);
+
+    resultsList.innerHTML += results
       .map(
         (result) => `
             <li>
                 <a href="${result.url}">${result.title}</a>
-                <p>Score: ${result.score.toFixed(4)}</p>
             </li>
         `
       )
