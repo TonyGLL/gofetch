@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -69,7 +70,7 @@ func (s *MongoStore) Disconnect(ctx context.Context) error {
 
 // AddDocument inserts a new document into the 'documents' collection.
 // Returns the ID of the inserted document as a hexadecimal string.
-func (s *MongoStore) AddDocument(ctx context.Context, doc Document) (string, error) {
+func (s *MongoStore) AddDocument(ctx context.Context, doc *Document) (string, error) {
 	result, err := s.documentCollection.InsertOne(ctx, doc)
 	if err != nil {
 		return "", err
@@ -128,8 +129,7 @@ func (s *MongoStore) GetIndexStats(ctx context.Context) (*IndexStats, error) {
 	var stats IndexStats
 	err := s.statsCollection.FindOne(ctx, filter).Decode(&stats)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			// If no stats doc exists, return a zero-value struct
+		if errors.Is(err, mongo.ErrNoDocuments) {
 			return &IndexStats{}, nil
 		}
 		return nil, err
@@ -188,7 +188,7 @@ func (s *MongoStore) GetDocuments(ctx context.Context, docIDs []string) ([]*Docu
 	defer cursor.Close(ctx)
 
 	var documents []*Document
-	if err = cursor.All(ctx, &documents); err != nil {
+	if err := cursor.All(ctx, &documents); err != nil {
 		return nil, err
 	}
 

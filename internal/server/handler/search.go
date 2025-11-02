@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/TonyGLL/gofetch/internal/search"
@@ -36,6 +37,6 @@ func (s *Search) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(results); err != nil {
 		// This error is harder to handle as the headers might already be written.
-		// log.Printf("error encoding response: %v", err)
+		log.Printf("error encoding response: %v", err)
 	}
 }
