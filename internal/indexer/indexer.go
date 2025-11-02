@@ -47,16 +47,18 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 	defer cancel()
 	n := 100
 	jobs := make(chan string, n)
-	results := make(chan indexPayload, n)
+	results := make(chan *indexPayload, n)
 	errCh := make(chan error, 1)
 
 	var wg sync.WaitGroup
 	workerCount := runtime.NumCPU()
 
+	indexedFilesCh := make(chan string, n)
+
 	// 1. Start workers
 	wg.Add(workerCount)
 	for range workerCount {
-		go idx.worker(ctx, &wg, jobs, results)
+		go idx.worker(ctx, &wg, jobs, results, indexedFilesCh)
 	}
 
 	// 2. Start writer
@@ -93,76 +95,142 @@ func (idx *Indexer) IndexDirectory(dirPath string) error {
 	// 4. Wait and synchronize
 	wg.Wait()
 	close(results)
+	close(indexedFilesCh)
 
 	select {
 	case <-writeDone:
 	case <-ctx.Done():
 	}
-
+	var indexedFiles []string
+	for filePath := range indexedFilesCh {
+		indexedFiles = append(indexedFiles, filePath)
+	}
 	select {
 	case err := <-errCh:
 		return fmt.Errorf("indexing failed: %w", err)
 	default:
+		fmt.Printf("Successfully indexed %d files:\n", len(indexedFiles))
+		for _, file := range indexedFiles {
+			fmt.Printf("- %s\n", file)
+		}
 		return nil
 	}
 }
 
+func (idx *Indexer) processFile(ctx context.Context, path string) (*indexPayload, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file %s: %w", path, err)
+	}
+	// Get file modification time
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return nil, fmt.Errorf("error getting file info for %s: %w", path, err)
+	}
+	modifiedAt := fileInfo.ModTime()
+
+	// Check if the document is already indexed and unchanged
+	existingDoc, err := idx.mongo_store.GetDocumentByPath(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("error checking existing document for %s: %w", path, err)
+	}
+
+	if existingDoc != nil {
+		if !modifiedAt.After(existingDoc.ModifiedAt) {
+			fmt.Printf("Skipping unchanged file: %s\n", path)
+			return nil, nil // nil, nil indicates skipped file
+		}
+		// If the file has been modified, remove old postings and delete the old document
+		oldTerms := idx.analyzer.Analyze(existingDoc.Content)
+		if err := idx.mongo_store.RemovePostingsForDocument(ctx, existingDoc.ID, oldTerms); err != nil {
+			return nil, fmt.Errorf("error removing old postings for %s: %w", path, err)
+		}
+
+		if err := idx.mongo_store.DeleteDocument(ctx, existingDoc.ID); err != nil {
+			return nil, fmt.Errorf("error deleting existing document for %s: %w", path, err)
+		}
+	}
+
+	text := string(data)
+
+	// Title extraction logic
+	title := ""
+	lines := strings.Split(text, "\n")
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine != "" {
+			title = trimmedLine
+			break
+		}
+	}
+
+	if title == "" {
+		title = filepath.Base(path) // Fallback to filename
+	}
+
+	tokens := idx.analyzer.Analyze(text)
+	freqs := make(map[string]int)
+	positions := make(map[string][]int)
+	for i, token := range tokens {
+		if token == "" {
+			continue
+		}
+
+		freqs[token]++
+		positions[token] = append(positions[token], i)
+	}
+
+	payload := &indexPayload{
+		Doc: storage.Document{
+			ID:         primitive.NewObjectID(),
+			URL:        path,
+			Title:      title, // Set the extracted title
+			Content:    text,
+			IndexedAt:  time.Now(),
+			ModifiedAt: modifiedAt,
+			FilePath:   path,
+		},
+		Freqs:     freqs,
+		Positions: positions,
+		FilePath:  path,
+	}
+
+	return payload, nil
+}
+
 // worker is the logic executed by each goroutine in the pool.
-func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan string, results chan<- indexPayload) {
+
+func (idx *Indexer) worker(
+	ctx context.Context,
+	wg *sync.WaitGroup,
+	jobs <-chan string,
+	results chan<- *indexPayload,
+	indexedFilesCh chan<- string,
+) {
 	defer wg.Done()
 	for path := range jobs {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			data, err := os.ReadFile(path)
+			payload, err := idx.processFile(ctx, path)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "error reading file %s: %v\n", path, err)
+				fmt.Fprintf(os.Stderr, "%v\n", err)
 				continue
 			}
-			text := string(data)
 
-			// Title extraction logic
-			title := ""
-			lines := strings.Split(text, "\n")
-			for _, line := range lines {
-				trimmedLine := strings.TrimSpace(line)
-				if trimmedLine != "" {
-					title = trimmedLine
-					break
-				}
-			}
-			if title == "" {
-				title = filepath.Base(path) // Fallback to filename
-			}
-
-			tokens := idx.analyzer.Analyze(text)
-
-			freqs := make(map[string]int)
-			positions := make(map[string][]int)
-			for i, token := range tokens {
-				if token == "" {
-					continue
-				}
-				freqs[token]++
-				positions[token] = append(positions[token], i)
-			}
-
-			payload := indexPayload{
-				Doc: storage.Document{
-					ID:        primitive.NewObjectID(),
-					URL:       path,
-					Title:     title, // Set the extracted title
-					Content:   text,
-					IndexedAt: time.Now(),
-				},
-				Freqs:     freqs,
-				Positions: positions,
-				FilePath:  path,
+			if payload == nil {
+				continue // File was skipped
 			}
 
 			select {
 			case results <- payload:
+				select {
+				case indexedFilesCh <- path:
+				case <-ctx.Done():
+					return
+				}
+
 			case <-ctx.Done():
 				return
 			}
@@ -173,7 +241,7 @@ func (idx *Indexer) worker(ctx context.Context, wg *sync.WaitGroup, jobs <-chan 
 // writer consumes results and writes them to MongoDB in batches.
 func (idx *Indexer) writer(
 	ctx context.Context,
-	results <-chan indexPayload,
+	results <-chan *indexPayload,
 	errCh chan<- error,
 	cancel context.CancelFunc,
 	done chan<- struct{},
@@ -182,7 +250,7 @@ func (idx *Indexer) writer(
 
 	const BATCH_SIZE = 100
 	const BATCH_TIMEOUT = 5 * time.Second
-	batch := make([]indexPayload, 0, BATCH_SIZE)
+	batch := make([]*indexPayload, 0, BATCH_SIZE)
 	ticker := time.NewTicker(BATCH_TIMEOUT)
 	defer ticker.Stop()
 
@@ -226,7 +294,7 @@ func (idx *Indexer) writer(
 }
 
 // writeBatch builds and executes BulkWrite operations for a batch of payloads.
-func (idx *Indexer) writeBatch(ctx context.Context, batch []indexPayload) error {
+func (idx *Indexer) writeBatch(ctx context.Context, batch []*indexPayload) error {
 	if len(batch) == 0 {
 		return nil
 	}

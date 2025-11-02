@@ -214,3 +214,36 @@ func (s *MongoStore) BulkWriteInvertedIndex(ctx context.Context, models []mongo.
 	_, err := s.indexCollection.BulkWrite(ctx, models, opts)
 	return err
 }
+
+// GetDocumentByPath retrieves a document by its file path.
+func (s *MongoStore) GetDocumentByPath(ctx context.Context, filePath string) (*Document, error) {
+	filter := bson.M{"file_path": filePath}
+	var doc Document
+	err := s.documentCollection.FindOne(ctx, filter).Decode(&doc)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil // Return nil, nil when no document is found
+		}
+		return nil, err
+	}
+	return &doc, nil
+}
+
+// DeleteDocument deletes a document from the 'documents' collection by its ID.
+func (s *MongoStore) DeleteDocument(ctx context.Context, docID primitive.ObjectID) error {
+	_, err := s.documentCollection.DeleteOne(ctx, bson.M{"_id": docID})
+	return err
+}
+
+// RemovePostingsForDocument removes all postings for a given document ID from the inverted index for a given list of terms.
+func (s *MongoStore) RemovePostingsForDocument(ctx context.Context, docID primitive.ObjectID, terms []string) error {
+	if len(terms) == 0 {
+		return nil
+	}
+
+	filter := bson.M{"_id": bson.M{"_in": terms}}
+	update := bson.M{"_pull": bson.M{"postings": bson.M{"doc_id": docID}}}
+
+	_, err := s.indexCollection.UpdateMany(ctx, filter, update)
+	return err
+}

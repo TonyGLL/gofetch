@@ -19,7 +19,7 @@ type SearchResult struct {
 	DocID string  `json:"docID"`
 	Title string  `json:"title"`
 	URL   string  `json:"url"`
-	Score float64 `json:"score"`
+	Score float64 `json:"-"`
 }
 
 // searcherImpl is the concrete implementation of the Searcher interface.
