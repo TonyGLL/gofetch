@@ -10,6 +10,7 @@ import (
 type Document struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty"`
 	URL       string             `bson:"url"`
+	Title     string             `bson:"title"`
 	Content   string             `bson:"content"`
 	IndexedAt time.Time          `bson:"indexed_at"`
 }
