@@ -21,6 +21,11 @@ type MongoStore struct {
 	statsCollection    *mongo.Collection
 }
 
+type GetDocumentsFilter struct {
+	Page  int64
+	Limit int64
+}
+
 // NewMongoStore is a constructor function that initializes an instance of MongoStore.
 // The actual connection is established through the Connect() method.
 func NewMongoStore() *MongoStore {
@@ -166,33 +171,42 @@ func (s *MongoStore) GetPostingsForTerms(ctx context.Context, terms []string) (m
 	return results, nil
 }
 
-func (s *MongoStore) GetDocuments(ctx context.Context, docIDs []string) ([]*Document, error) {
+func (s *MongoStore) GetDocuments(ctx context.Context, docIDs []string, pagination GetDocumentsFilter) ([]*Document, int, error) {
 	if len(docIDs) == 0 {
-		return []*Document{}, nil
+		return []*Document{}, 0, nil
 	}
 
 	objectIDs := make([]primitive.ObjectID, len(docIDs))
 	for i, id := range docIDs {
 		objID, err := primitive.ObjectIDFromHex(id)
 		if err != nil {
-			return nil, err // Invalid ID format
+			return nil, 0, err // Invalid ID format
 		}
 		objectIDs[i] = objID
 	}
 
 	filter := bson.M{"_id": bson.M{"$in": objectIDs}}
-	cursor, err := s.documentCollection.Find(ctx, filter)
+
+	findOptions := options.Find()
+	findOptions.SetSkip((pagination.Page - 1) * pagination.Limit)
+	findOptions.SetLimit(pagination.Limit)
+
+	total, err := s.documentCollection.CountDocuments(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
+	}
+	cursor, err := s.documentCollection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, 0, err
 	}
 	defer cursor.Close(ctx)
 
 	var documents []*Document
 	if err := cursor.All(ctx, &documents); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return documents, nil
+	return documents, int(total), nil
 }
 
 // BulkWriteDocuments performs a bulk write operation on the documents collection.
