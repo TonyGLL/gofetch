@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/TonyGLL/gofetch/internal/search"
+	"github.com/TonyGLL/gofetch/internal/storage"
 )
 
 // Search is the handler for the search endpoint.
@@ -23,8 +25,39 @@ func (s *Search) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	page := r.URL.Query().Get("page")
+	if page == "" {
+		http.Error(w, "query parameter 'page' is missing", http.StatusBadRequest)
+		return
+	}
+
+	limit := r.URL.Query().Get("limit")
+	if limit == "" {
+		http.Error(w, "query parameter 'limit' is missing", http.StatusBadRequest)
+		return
+	}
+
 	// 2. Perform the search using the injected searcher.
-	results, err := s.Searcher.Search(r.Context(), query)
+	pageInt64, err := strconv.ParseInt(page, 0, 0)
+	if err != nil {
+		// Log the error internally
+		// In a real app, you'd use a structured logger.
+		// log.Printf("error during search: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	limitInt64, err := strconv.ParseInt(limit, 0, 0)
+	if err != nil {
+		// Log the error internally
+		// In a real app, you'd use a structured logger.
+		// log.Printf("error during search: %v", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	results, err := s.Searcher.Search(r.Context(), query, storage.GetDocumentsFilter{
+		Page:  pageInt64,
+		Limit: limitInt64,
+	})
 	if err != nil {
 		// Log the error internally
 		// In a real app, you'd use a structured logger.

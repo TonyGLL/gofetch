@@ -15,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const response = await fetch(
-        `http://localhost:8080/api/v1/search?q=${encodeURIComponent(query)}`
+        `http://localhost:8080/api/v1/search?q=${encodeURIComponent(
+          query
+        )}&page=1&limit=10`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -33,19 +35,19 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function renderResults(results, duration) {
-    if (!results || results.length === 0) {
+    if (!results.data || results.data.length === 0) {
       resultsList.innerHTML = '<li>No results found.</li>';
       return;
     }
 
     const resultHeader = document.createElement('p');
-    resultHeader.textContent = `About ${results.length} results (${duration.toFixed(
-      4
-    )} seconds)`;
+    resultHeader.textContent = `About ${
+      results.total
+    } results (${duration.toFixed(4)} seconds)`;
     resultsList.innerHTML = '';
     resultsList.appendChild(resultHeader);
 
-    resultsList.innerHTML += results
+    resultsList.innerHTML += results.data
       .map(
         (result) => `
             <li>
