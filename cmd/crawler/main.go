@@ -1,8 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/TonyGLL/gofetch/internal/crawler"
+)
 
 func main() {
 	// Application entry point
-	fmt.Println("Crawler is running...")
+	fmt.Println("Crawler application started")
+	crawler.Crawl()
 }
