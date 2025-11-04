@@ -8,7 +8,7 @@ type Fetcher interface {
 	Fetch(url string) (body string, urls []string, err error)
 }
 
-func Crawl(url string, depth int, fetcher Fetcher) {
+func Crawl(url string, depth int) {
 	// Crawling logic will be implemented here
 	println("Crawling:", url)
 	// TODO: Fetch URLs in parallel.
@@ -24,9 +24,8 @@ func Crawl(url string, depth int, fetcher Fetcher) {
 	}
 	fmt.Printf("found: %s %q\n", url, body)
 	for _, u := range urls {
-		Crawl(u, depth-1, fetcher)
+		Crawl(u, depth-1)
 	}
-	return
 }
 
 type fakeFetcher map[string]*fakeResult
@@ -70,9 +69,11 @@ var fetcher = fakeFetcher{
 	},
 }
 
-func (f fakeFetcher) Fetch(url string) (string, []string, error) {
+func (f fakeFetcher) Fetch(url string) (body string, urls []string, err error) {
 	if res, ok := f[url]; ok {
-		return res.body, res.urls, nil
+		body, urls, err = res.body, res.urls, nil
+		return
 	}
-	return "", nil, fmt.Errorf("not found: %s", url)
+	err = fmt.Errorf("not found: %s", url)
+	return
 }

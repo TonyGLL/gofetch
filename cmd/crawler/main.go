@@ -9,5 +9,6 @@ import (
 func main() {
 	// Application entry point
 	fmt.Println("Crawler application started")
-	crawler.Crawl("https://golang.org/", 4, fetcher)
+	depth := 4
+	crawler.Crawl("https://golang.org/", depth)
 }
