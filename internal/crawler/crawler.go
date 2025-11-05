@@ -1,79 +1,63 @@
 package crawler
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+)
 
-type Fetcher interface {
-	// Fetch returns the body of URL and
-	// a slice of URLs found on that page.
-	Fetch(url string) (body string, urls []string, err error)
+type Crawler struct {
+	urls    []string
+	visited map[string]bool
+	depth   int
 }
 
-func Crawl(url string, depth int) {
-	// Crawling logic will be implemented here
-	println("Crawling:", url)
-	// TODO: Fetch URLs in parallel.
-	// TODO: Don't fetch the same URL twice.
-	// This implementation doesn't do either:
-	if depth <= 0 {
-		return
+func NewCrawler(urls []string, depth int) *Crawler {
+	return &Crawler{
+		urls:    urls,
+		visited: make(map[string]bool),
+		depth:   depth,
 	}
-	body, urls, err := fetcher.Fetch(url)
+}
+
+func (c *Crawler) Crawl() {
+	for _, url := range c.urls {
+		fmt.Printf("Crawling URL: %s\n", url)
+		// Fetch and parse robots.txt
+		host := extractHost(url)
+		robotsTxt, err := fetchRobotsTxt(host)
+		if err != nil {
+			fmt.Printf("Failed to fetch robots.txt for %s: %v\n", host, err)
+			continue
+		}
+		fmt.Printf("robots.txt for %s:\n%s\n", host, string(robotsTxt))
+		// Further crawling logic would go here
+	}
+}
+
+func extractHost(url string) string {
+	// Simple extraction of host from URL
+	// In production code, use url.Parse from net/url package
+	if len(url) > 8 && url[:8] == "https://" {
+		url = url[8:]
+	} else if len(url) > 7 && url[:7] == "http://" {
+		url = url[7:]
+	}
+	for i, ch := range url {
+		if ch == '/' {
+			return url[:i]
+		}
+	}
+	return url
+}
+
+func fetchRobotsTxt(host string) ([]byte, error) {
+	url := "https://" + host + "/robots.txt"
+	resp, err := http.NewRequestWithContext(context.Background(), "GET", url, http.NoBody)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return nil, err // o permitir todo si falla
 	}
-	fmt.Printf("found: %s %q\n", url, body)
-	for _, u := range urls {
-		Crawl(u, depth-1)
-	}
-}
-
-type fakeFetcher map[string]*fakeResult
-
-type fakeResult struct {
-	body string
-	urls []string
-}
-
-// fetcher is a populated fakeFetcher.
-var fetcher = fakeFetcher{
-	"https://golang.org/": &fakeResult{
-		"The Go Programming Language",
-		[]string{
-			"https://golang.org/pkg/",
-			"https://golang.org/cmd/",
-		},
-	},
-	"https://golang.org/pkg/": &fakeResult{
-		"Packages",
-		[]string{
-			"https://golang.org/",
-			"https://golang.org/cmd/",
-			"https://golang.org/pkg/fmt/",
-			"https://golang.org/pkg/os/",
-		},
-	},
-	"https://golang.org/pkg/fmt/": &fakeResult{
-		"Package fmt",
-		[]string{
-			"https://golang.org/",
-			"https://golang.org/pkg/",
-		},
-	},
-	"https://golang.org/pkg/os/": &fakeResult{
-		"Package os",
-		[]string{
-			"https://golang.org/",
-			"https://golang.org/pkg/",
-		},
-	},
-}
-
-func (f fakeFetcher) Fetch(url string) (body string, urls []string, err error) {
-	if res, ok := f[url]; ok {
-		body, urls, err = res.body, res.urls, nil
-		return
-	}
-	err = fmt.Errorf("not found: %s", url)
-	return
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
 }

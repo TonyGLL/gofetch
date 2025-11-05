@@ -8,7 +8,11 @@ import (
 
 func main() {
 	// Application entry point
-	fmt.Println("Crawler application started")
 	depth := 4
-	crawler.Crawl("https://golang.org/", depth)
+	fmt.Println("Crawler application started")
+	crawlerInst := crawler.NewCrawler([]string{
+		"https://go.dev/",
+	}, depth)
+
+	crawlerInst.Crawl()
 }
