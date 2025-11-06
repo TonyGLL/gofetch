@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// Application entry point
-	depth := 4
+	depth := 1
 	fmt.Println("Crawler application started")
 	crawlerInst := crawler.NewCrawler([]string{
 		"https://go.dev/",

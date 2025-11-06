@@ -1,111 +1,227 @@
 package crawler
 
 import (
-	"context"
+	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
+	"strings"
+	"sync"
 	"time"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 type Crawler struct {
-	urls    []string
-	visited map[string]bool
-	depth   int
+	startURLs   []string
+	maxDepth    int
+	visited     sync.Map
+	queue       chan *CrawlTask
+	rulesCache  sync.Map // map[string]*RobotRules
+	lastRequest sync.Map // map[string]time.Time
+	client      *http.Client
+	userAgent   string
+	wg          sync.WaitGroup
+	workerCount int
+	results     []CrawlResult
+	resultsMu   sync.Mutex
 }
 
-func NewCrawler(urls []string, depth int) *Crawler {
-	return &Crawler{
-		urls:    urls,
-		visited: make(map[string]bool),
-		depth:   depth,
+type CrawlTask struct {
+	URL   string
+	Depth int
+}
+
+type CrawlResult struct {
+	URL         string
+	Title       string
+	StatusCode  int
+	Depth       int
+	AllowedByRP bool
+}
+
+func NewCrawler(startURLs []string, maxDepth int) *Crawler {
+	c := &Crawler{
+		startURLs:   startURLs,
+		maxDepth:    maxDepth,
+		queue:       make(chan *CrawlTask, 1000),
+		client:      &http.Client{Timeout: 10 * time.Second},
+		userAgent:   "MyCrawler/1.0 (+https://example.com/bot)",
+		workerCount: 5,
 	}
+	return c
 }
 
 func (c *Crawler) Crawl() {
-	for _, url := range c.urls {
-		fmt.Printf("Crawling URL: %s\n", url)
-		// Fetch and parse robots.txt
-		host, err := extractHost(url)
-		if err != nil {
-			fmt.Printf("Failed to extract host from URL %s: %v\n", url, err)
-			continue
-		}
-		robotsTxt, err := fetchRobotsTxt(host)
-		if err != nil {
-			fmt.Printf("Failed to fetch robots.txt for %s: %v\n", host, err)
-			continue
-		}
-		fmt.Printf("robots.txt for %s:\n%s\n", host, string(robotsTxt))
-		// Further crawling logic would go here
+	// 1. Encolar URLs iniciales
+	for _, u := range c.startURLs {
+		c.enqueue(u, 0)
+	}
+
+	// 2. Iniciar workers (SIN wg.Add!)
+	for i := 0; i < c.workerCount; i++ {
+		go c.worker()
+	}
+
+	// 3. Cerrar cola cuando no haya más tareas
+	go func() {
+		c.wg.Wait()
+		close(c.queue)
+	}()
+
+	// 4. Esperar a que TODO termine
+	c.wg.Wait()
+
+	// 5. Mostrar resultados
+	c.printResults()
+}
+
+func (c *Crawler) worker() {
+	for task := range c.queue {
+		c.crawlTask(task)
 	}
 }
 
-func extractHost(rawURL string) (string, error) {
-	parsed, err := url.Parse(rawURL)
-	if err != nil {
-		return "", fmt.Errorf("invalid URL: %w", err)
+func (c *Crawler) enqueue(rawURL string, depth int) {
+	if depth > c.maxDepth {
+		return
 	}
-
-	host := parsed.Hostname()
-	if host == "" {
-		return "", fmt.Errorf("no host found in URL: %s", rawURL)
+	if _, loaded := c.visited.LoadOrStore(rawURL, true); loaded {
+		return
 	}
-
-	return host, nil
+	c.wg.Add(1)
+	c.queue <- &CrawlTask{URL: rawURL, Depth: depth}
 }
 
-// fetchRobotsTxt fetches robots.txt safely, validating the host and handling errors properly.
-func fetchRobotsTxt(host string) ([]byte, error) {
-	// === 1. Validate and sanitize the host (prevent SSRF) ===
-	parsedURL, err := url.Parse("https://" + host)
+func (c *Crawler) crawlTask(task *CrawlTask) {
+	defer c.wg.Done() // ← ¡SIEMPRE se ejecuta!
+
+	u, err := url.Parse(task.URL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid host: %w", err)
-	}
-	if parsedURL.Hostname() != host {
-		return nil, fmt.Errorf("invalid host: contains scheme or path")
-	}
-	if isPrivateOrLocal(host) {
-		return nil, fmt.Errorf("host %s is private or local, blocked for security", host)
+		log.Printf("Invalid URL: %s", task.URL)
+		return
 	}
 
-	// === 2. Build a safe URL ===
-	robotsURL := "https://" + host + "/robots.txt"
+	host := u.Hostname()
+	rules := c.getRobotRules(host)
+	path := u.Path
+	if u.RawQuery != "" {
+		path += "?" + u.RawQuery
+	}
 
-	// === 3. Create a context with timeout (RECOMMENDED) ===
-	seconds := 10 * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), seconds)
-	defer cancel() // Important!
+	if !rules.IsAllowed(path) {
+		c.addResult(CrawlResult{
+			URL:         task.URL,
+			Depth:       task.Depth,
+			AllowedByRP: false,
+		})
+		log.Printf("[BLOCKED by robots.txt] %s", task.URL)
+		return
+	}
 
-	// === 4. Create the request WITH context ===
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, robotsURL, http.NoBody)
+	c.respectCrawlDelay(host, rules.CrawlDelay)
+
+	req, _ := http.NewRequest("GET", task.URL, nil)
+	req.Header.Set("User-Agent", c.userAgent)
+	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("User-Agent", "MyCrawler/1.0 (+https://example.com/bot)")
-
-	// === 5. HTTP client (also respects the context) ===
-	client := &http.Client{
-		// Timeout ya no es necesario si usas contexto, pero puedes dejarlo
-	}
-
-	// === 6. Execute with Do ===
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch robots.txt: %w", err)
+		log.Printf("HTTP error %s: %v", task.URL, err)
+		return
 	}
 	defer resp.Body.Close()
 
-	// === 7. Read body ===
-	body, err := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read robots.txt body: %w", err)
+		log.Printf("Parse error %s: %v", task.URL, err)
+		return
 	}
 
-	return body, nil
+	title := doc.Find("title").First().Text()
+	c.addResult(CrawlResult{
+		URL:         task.URL,
+		Title:       strings.TrimSpace(title),
+		StatusCode:  resp.StatusCode,
+		Depth:       task.Depth,
+		AllowedByRP: true,
+	})
+
+	log.Printf("[OK] [%d] Depth %d: %s", resp.StatusCode, task.Depth, task.URL)
+
+	if task.Depth < c.maxDepth {
+		baseURL := task.URL
+		doc.Find("a[href]").Each(func(i int, s *goquery.Selection) {
+			href, exists := s.Attr("href")
+			if !exists {
+				return
+			}
+			absURL := resolveURL(baseURL, href)
+			if absURL == "" {
+				return
+			}
+			abs, err := url.Parse(absURL)
+			if err != nil || abs.Hostname() != host {
+				return
+			}
+			c.enqueue(absURL, task.Depth+1)
+		})
+	}
 }
 
-func isPrivateOrLocal(host string) bool {
-	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+func (c *Crawler) getRobotRules(host string) *RobotRules {
+	if val, ok := c.rulesCache.Load(host); ok {
+		return val.(*RobotRules)
+	}
+
+	body, err := fetchRobotsTxt(host, c.userAgent)
+	if err != nil {
+		log.Printf("robots.txt error for %s: %v → allowing all", host, err)
+		rules := NewRobotRules(c.userAgent)
+		rules.AppliesToMe = true
+		c.rulesCache.Store(host, rules)
+		return rules
+	}
+
+	rules := ParseRobotsTxt(body, c.userAgent)
+	c.rulesCache.Store(host, rules)
+	return rules
+}
+
+func (c *Crawler) respectCrawlDelay(host string, delay float64) {
+	if delay <= 0 {
+		return
+	}
+	last, _ := c.lastRequest.LoadOrStore(host, time.Time{})
+	lastTime := last.(time.Time)
+	wait := time.Duration(delay*1000) * time.Millisecond
+	sleep := wait - time.Since(lastTime)
+	if sleep > 0 {
+		time.Sleep(sleep)
+	}
+	c.lastRequest.Store(host, time.Now())
+}
+
+func (c *Crawler) addResult(r CrawlResult) {
+	c.resultsMu.Lock()
+	c.results = append(c.results, r)
+	c.resultsMu.Unlock()
+}
+
+func (c *Crawler) printResults() {
+	fmt.Println("\n=== CRAWL SUMMARY ===")
+	for _, r := range c.results {
+		status := "OK"
+		if !r.AllowedByRP {
+			status = "BLOCKED"
+		} else if r.StatusCode >= 400 {
+			status = fmt.Sprintf("ERROR %d", r.StatusCode)
+		}
+		fmt.Printf("[%s] Depth %d: %s\n", status, r.Depth, r.URL)
+		if r.Title != "" {
+			fmt.Printf("    Title: %s\n", r.Title)
+		}
+	}
+	fmt.Printf("Total pages processed: %d\n", len(c.results))
 }
