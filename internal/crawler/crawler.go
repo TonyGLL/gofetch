@@ -55,26 +55,26 @@ func NewCrawler(startURLs []string, maxDepth int) *Crawler {
 }
 
 func (c *Crawler) Crawl() {
-	// 1. Encolar URLs iniciales
+	// 1. Enqueue initial URLs
 	for _, u := range c.startURLs {
 		c.enqueue(u, 0)
 	}
 
-	// 2. Iniciar workers (SIN wg.Add!)
+	// 2. Start workers (NO wg.Add!)
 	for i := 0; i < c.workerCount; i++ {
 		go c.worker()
 	}
 
-	// 3. Cerrar cola cuando no haya más tareas
+	// 3. Close queue when there are no more tasks
 	go func() {
 		c.wg.Wait()
 		close(c.queue)
 	}()
 
-	// 4. Esperar a que TODO termine
+	// 4. Wait for everything to finish
 	c.wg.Wait()
 
-	// 5. Mostrar resultados
+	// 5. Print results
 	c.printResults()
 }
 
@@ -96,7 +96,7 @@ func (c *Crawler) enqueue(rawURL string, depth int) {
 }
 
 func (c *Crawler) crawlTask(task *CrawlTask) {
-	defer c.wg.Done() // ← ¡SIEMPRE se ejecuta!
+	defer c.wg.Done() // ← ALWAYS runs!
 
 	u, err := url.Parse(task.URL)
 	if err != nil {
