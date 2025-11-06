@@ -12,10 +12,11 @@ import (
 
 func fetchRobotsTxt(host, userAgent string) ([]byte, error) {
 	robotsURL := fmt.Sprintf("https://%s/robots.txt", host)
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	seconds := 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), seconds)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "GET", robotsURL, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", robotsURL, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
@@ -28,7 +29,7 @@ func fetchRobotsTxt(host, userAgent string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
+	if resp.StatusCode >= http.StatusBadRequest {
 		return nil, fmt.Errorf("status %d", resp.StatusCode)
 	}
 
