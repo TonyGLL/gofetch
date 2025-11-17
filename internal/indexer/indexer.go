@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/TonyGLL/gofetch/internal/analysis"
 	"github.com/TonyGLL/gofetch/internal/storage"
 
@@ -18,6 +19,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 )
+
+const maxContent = 100
 
 // indexPayload is the data structure that workers send to the writer.
 type indexPayload struct {
@@ -41,19 +44,96 @@ func NewIndexer(analyzer *analysis.Analyzer, mongo_store *storage.MongoStore) *I
 	}
 }
 
+func (idx *Indexer) IndexWebPage(ctx context.Context, urlStr, title, htmlContent string) error {
+	// 1. Extract clean text from the HTML (no tags, scripts, etc.)
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return fmt.Errorf("goquery parse error %s: %w", urlStr, err)
+	}
+
+	// Extract visible text (cleaner than just body.Text())
+	var text strings.Builder
+	doc.Find("body").Contents().Each(func(_ int, s *goquery.Selection) {
+		if goquery.NodeName(s) == "script" || goquery.NodeName(s) == "style" {
+			return
+		}
+		if s.Is("script,style,noscript") {
+			return
+		}
+		text.WriteString(s.Text() + " ")
+	})
+	cleanText := strings.Join(strings.Fields(text.String()), " ")
+
+	if len(cleanText) < maxContent {
+		return fmt.Errorf("contenido muy corto, saltando: %s", urlStr)
+	}
+
+	// 2. Generate tokens using the same analyzer you use for files
+	tokens := idx.analyzer.Analyze(cleanText)
+
+	// 3. Count frequencies and positions (reusing your exact logic)
+	freqs := make(map[string]int)
+	positions := make(map[string][]int)
+	for i, token := range tokens {
+		if token == "" {
+			continue
+		}
+		freqs[token]++
+		positions[token] = append(positions[token], i)
+	}
+
+	// 4. Create the document (same as in processFile)
+	document := storage.Document{
+		ID:         primitive.NewObjectID(),
+		SourceType: "web",
+		URL:        urlStr,
+		Title:      strings.TrimSpace(title),
+		Content:    cleanText,
+		IndexedAt:  time.Now(),
+		ModifiedAt: time.Now(), // o podrías usar HTTP Last-Modified si lo tienes
+	}
+
+	// 5. Reuse your existing writer: send the payload through the channel
+	// We simulate the same flow used by the file workers
+	payload := &indexPayload{
+		Doc:       document,
+		Freqs:     freqs,
+		Positions: positions,
+		FilePath:  urlStr, // solo para logging, no se usa
+	}
+
+	// Usamos el mismo writer que ya tienes corriendo (o uno temporal si no hay)
+	results := make(chan *indexPayload, 1)
+	results <- payload
+	close(results)
+
+	errCh := make(chan error, 1)
+	writeDone := make(chan struct{})
+
+	go idx.writer(ctx, results, errCh, func() {}, writeDone)
+
+	select {
+	case <-writeDone:
+		return nil
+	case err := <-errCh:
+		return err
+	}
+}
+
 // IndexDirectory runs the concurrent pipeline to index files in a directory.
 func (idx *Indexer) IndexDirectory(dirPath string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	n := 100
-	jobs := make(chan string, n)
-	results := make(chan *indexPayload, n)
+
+	channelBuffer := 100
+	jobs := make(chan string, channelBuffer)
+	results := make(chan *indexPayload, channelBuffer)
 	errCh := make(chan error, 1)
 
 	var wg sync.WaitGroup
 	workerCount := runtime.NumCPU()
 
-	indexedFilesCh := make(chan string, n)
+	indexedFilesCh := make(chan string, channelBuffer)
 
 	// 1. Start workers
 	wg.Add(workerCount)
@@ -183,6 +263,7 @@ func (idx *Indexer) processFile(ctx context.Context, path string) (*indexPayload
 	payload := &indexPayload{
 		Doc: storage.Document{
 			ID:         primitive.NewObjectID(),
+			SourceType: "file",
 			URL:        path,
 			Title:      title, // Set the extracted title
 			Content:    text,

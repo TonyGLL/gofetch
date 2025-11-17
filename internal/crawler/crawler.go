@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/TonyGLL/gofetch/internal/indexer"
 )
 
 type Crawler struct {
@@ -28,6 +29,8 @@ type Crawler struct {
 	workerCount int
 	results     []CrawlResult
 	resultsMu   sync.Mutex
+	indexer     *indexer.Indexer
+	ctx         *context.Context
 }
 
 type CrawlTask struct {
@@ -48,7 +51,12 @@ const defaultWorkerCount = 5
 const secondsInMillisecond = 1000
 const millisecondsInSecond = 10
 
-func NewCrawler(startURLs []string, maxDepth int) *Crawler {
+func NewCrawler(
+	startURLs []string,
+	maxDepth int,
+	idx *indexer.Indexer,
+	ctx context.Context,
+) *Crawler {
 	c := &Crawler{
 		startURLs:   startURLs,
 		maxDepth:    maxDepth,
@@ -56,6 +64,8 @@ func NewCrawler(startURLs []string, maxDepth int) *Crawler {
 		client:      &http.Client{Timeout: millisecondsInSecond * time.Second},
 		userAgent:   defaultUserAgent,
 		workerCount: defaultWorkerCount,
+		indexer:     idx,
+		ctx:         &ctx,
 	}
 	return c
 }
@@ -156,6 +166,15 @@ func (c *Crawler) crawlTask(task *CrawlTask) {
 		Depth:       task.Depth,
 		AllowedByRP: true,
 	})
+
+	if c.indexer != nil {
+		err := c.indexer.IndexWebPage(*c.ctx, task.URL, title, string(body))
+		if err != nil {
+			log.Printf("[INDEX FAIL] %s: %v", task.URL, err)
+		} else {
+			log.Printf("[INDEXED] %s | %d tokens", task.URL, len(strings.Fields(string(body))))
+		}
+	}
 
 	log.Printf("[OK] [%d] Depth %d: %s", resp.StatusCode, task.Depth, task.URL)
 
