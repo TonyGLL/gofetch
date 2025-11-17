@@ -9,6 +9,7 @@ import (
 // Document (no changes)
 type Document struct {
 	ID         primitive.ObjectID `bson:"_id,omitempty"`
+	SourceType string             `bson:"source_type"`
 	URL        string             `bson:"url"`
 	Title      string             `bson:"title"`
 	Content    string             `bson:"content"`
