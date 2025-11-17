@@ -25,7 +25,7 @@ func main() {
 	args := flag.String("path", "data/index", "Path to store the index data")
 	flag.Parse()
 
-	an := analysis.NewEnglishAnalyzer()
+	an := analysis.NewFromEnv()
 	idx := indexer.NewIndexer(an, store)
 	if err := idx.IndexDirectory(*args); err != nil {
 		fmt.Printf("Index error: %v\n", err)

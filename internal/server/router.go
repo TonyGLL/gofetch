@@ -22,7 +22,7 @@ func NewRouter() *http.ServeMux {
 	}
 
 	// 2. Create the analyzer.
-	analyzer := analysis.NewEnglishAnalyzer()
+	analyzer := analysis.NewFromEnv()
 
 	// 3. Create the searcher with its dependencies.
 	searcher := search.NewSearcher(analyzer, store)

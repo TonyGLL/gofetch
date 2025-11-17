@@ -1,28 +1,32 @@
 package analysis
 
 import (
+	"os"
 	"regexp"
 	"strings"
 	"unicode"
 
 	"github.com/TonyGLL/gofetch/pkg/storage"
+	"github.com/kljensen/snowball"
 )
 
 type Analyzer struct {
 	stopwords map[string]struct{}
+	language  string
 }
 
 func NewEnglishAnalyzer() *Analyzer {
-	return New(storage.EnglishStopwords)
+	return New(storage.EnglishStopwords, "english")
 }
 
 func NewSpanishAnalyzer() *Analyzer {
-	return New(storage.SpanishStopwords)
+	return New(storage.SpanishStopwords, "spanish")
 }
 
-func New(stopwords []string) *Analyzer {
+func New(stopwords []string, language string) *Analyzer {
 	return &Analyzer{
 		stopwords: buildStopwordSet(stopwords),
+		language:  language,
 	}
 }
 
@@ -30,15 +34,23 @@ func (a *Analyzer) Analyze(text string) []string {
 	// Tokenize input text
 	words := tokenize(text)
 
-	// Normalize every word and filter stopwords
+	// Normalize every word, filter stopwords, and stem
 	result := []string{}
 	for _, word := range words {
 		normWord := normalize(word)
 		if normWord == "" {
 			continue
 		}
-		if _, isStopword := a.stopwords[normWord]; !isStopword {
+		if _, isStopword := a.stopwords[normWord]; isStopword {
+			continue
+		}
+
+		stemmedWord, err := snowball.Stem(normWord, a.language, true)
+		if err != nil {
+			// If stemming fails, use the normalized word as a fallback.
 			result = append(result, normWord)
+		} else {
+			result = append(result, stemmedWord)
 		}
 	}
 	return result
@@ -68,4 +80,14 @@ func buildStopwordSet(stopwords []string) map[string]struct{} {
 		set[word] = struct{}{}
 	}
 	return set
+}
+
+func NewFromEnv() *Analyzer {
+	lang := os.Getenv("ANALYZER_LANGUAGE")
+	switch strings.ToLower(lang) {
+	case "spanish":
+		return NewSpanishAnalyzer()
+	default:
+		return NewEnglishAnalyzer()
+	}
 }
