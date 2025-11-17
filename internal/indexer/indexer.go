@@ -20,6 +20,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+const maxContent = 100
+
 // indexPayload is the data structure that workers send to the writer.
 type indexPayload struct {
 	Doc       storage.Document
@@ -51,7 +53,7 @@ func (idx *Indexer) IndexWebPage(ctx context.Context, urlStr, title, htmlContent
 
 	// Extract visible text (cleaner than just body.Text())
 	var text strings.Builder
-	doc.Find("body").Contents().Each(func(i int, s *goquery.Selection) {
+	doc.Find("body").Contents().Each(func(_ int, s *goquery.Selection) {
 		if goquery.NodeName(s) == "script" || goquery.NodeName(s) == "style" {
 			return
 		}
@@ -62,7 +64,7 @@ func (idx *Indexer) IndexWebPage(ctx context.Context, urlStr, title, htmlContent
 	})
 	cleanText := strings.Join(strings.Fields(text.String()), " ")
 
-	if len(cleanText) < 100 {
+	if len(cleanText) < maxContent {
 		return fmt.Errorf("contenido muy corto, saltando: %s", urlStr)
 	}
 
