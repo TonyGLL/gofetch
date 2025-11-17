@@ -37,6 +37,7 @@ The application uses environment variables for configuration. You can set them i
 
 -   `MONGODB_URI`: The MongoDB connection string. Default: `mongodb://localhost:27017`
 -   `DB_NAME`: The name of the database to use. Default: `gofetch`
+-   `ANALYZER_LANGUAGE`: The language for the text analyzer. Supported values: `english`, `spanish`. Default: `english`
 
 ## Usage
 
