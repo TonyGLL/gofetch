@@ -20,7 +20,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	store, err := builder.NewMongoStore(ctx, cfg)
+	store, err := builder.NewMongoStore(ctx, &cfg)
 	if err != nil {
 		log.Fatalf("Error creating MongoStore: %v", err)
 	}

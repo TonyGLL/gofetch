@@ -9,9 +9,9 @@ import (
 // Config almacena toda la configuración de la aplicación.
 // Viper lee los valores desde un archivo de configuración o variables de entorno.
 type Config struct {
-	MongoURI   string `mapstructure:"mongo_uri"`
-	DBName     string `mapstructure:"db_name"`
-	ServerPort int    `mapstructure:"server_port"`
+	MongoURI   string        `mapstructure:"mongo_uri"`
+	DBName     string        `mapstructure:"db_name"`
+	ServerPort int           `mapstructure:"server_port"`
 	Crawler    CrawlerConfig `mapstructure:"crawler"`
 	Indexer    IndexerConfig `mapstructure:"indexer"`
 }

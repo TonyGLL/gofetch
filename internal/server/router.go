@@ -20,7 +20,7 @@ func NewRouter() *http.ServeMux {
 	}
 
 	// 1. Create and connect to the database store.
-	store, err := builder.NewMongoStore(context.Background(), cfg)
+	store, err := builder.NewMongoStore(context.Background(), &cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 // NewMongoStore creates a new MongoStore instance.
-func NewMongoStore(ctx context.Context, cfg config.Config) (*storage.MongoStore, error) {
+func NewMongoStore(ctx context.Context, cfg *config.Config) (*storage.MongoStore, error) {
 	return storage.NewMongoStore(ctx, cfg.MongoURI, cfg.DBName)
 }
 
