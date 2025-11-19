@@ -1,0 +1,17 @@
+# Configuration for gofetch
+
+# MongoDB connection settings
+mongodb_uri: "mongodb://localhost:27017"
+db_name: "gofetch"
+
+# Text analysis settings
+# Supported languages: "english", "spanish"
+analyzer_language: "english"
+
+# Indexer settings
+indexer:
+  path: "./data"
+
+# API Server settings
+server:
+  port: "8080"

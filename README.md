@@ -1,14 +1,33 @@
-# gofetch: A Local and Web Search Engine
+# gofetch: High-Performance Local and Web Search Engine
 
-`gofetch` is a high-performance search engine written in Go, designed to index content from both local files and websites. The system provides relevance-based search through a RESTful API and a minimalist web user interface.
+![gofetch architecture](https://user-images.githubusercontent.com/12345678/123456789-abcdef.png)  <!-- Placeholder for a future architecture diagram -->
 
-## Key Features
+`gofetch` is a powerful, high-performance search engine written in Go, designed to index and search content from local file systems and (in the future) the web. It provides a clean RESTful API for querying and a minimalist web interface for a seamless user experience.
 
-- **Dual Indexing:** Support for indexing local directories (`.txt`, `.md`) and websites (future feature).
-- **Relevance-Based Search:** Implementation of ranking algorithms like TF-IDF.
-- **Robust Persistence:** Uses MongoDB to store the inverted index and metadata.
-- **Concurrent Architecture:** Efficient design that leverages Go's goroutines for indexing.
-- **Professional Operability:** Easy to configure, deploy, and monitor using Docker and GitHub Actions.
+This project is perfect for developers who want to build their own search solutions, learn about information retrieval concepts, or integrate full-text search capabilities into their Go applications.
+
+## Project Vision
+
+The goal of `gofetch` is to be a lightweight yet powerful search engine that is:
+
+- **Fast and Efficient:** Built with Go's concurrency model to handle indexing and searching with high throughput.
+- **Easy to Use:** Simple to configure, deploy, and integrate via a clean API.
+- **Extensible:** Designed with a modular architecture to allow for future expansion, such as adding new data sources or ranking algorithms.
+- **Educational:** Provides a clear and well-documented codebase for those interested in learning about search engine internals.
+
+## Features at a Glance
+
+- **Dual Indexing:** Supports indexing of local directories (text and markdown files). Web crawling capabilities are planned for a future release.
+- **Relevance-Based Ranking:** Implements the TF-IDF (Term Frequency-Inverse Document Frequency) algorithm to deliver relevance-ranked search results.
+- **Advanced Text Analysis:** Features a sophisticated text analysis pipeline including:
+    - **Tokenization:** Breaks down text into individual words or terms.
+    - **Normalization:** Converts text to a consistent case (lowercase).
+    - **Stop Word Filtering:** Removes common words to improve index quality.
+    - **Stemming:** Reduces words to their root form using Snowball stemmers.
+- **Multi-Language Support:** Out-of-the-box support for **English** and **Spanish**.
+- **Robust Persistence:** Utilizes MongoDB for scalable and reliable storage of the search index and document metadata.
+- **Concurrent by Design:** Leverages Go's goroutines to perform indexing and searching operations concurrently, maximizing performance.
+- **Containerized:** Comes with `Dockerfile` and `docker-compose.yaml` for easy, reproducible deployments.
 
 ## Getting Started
 
@@ -16,48 +35,73 @@
 
 - Go (1.18 or higher)
 - MongoDB
-- Docker and Docker Compose (for containerized development)
+- Docker & Docker Compose (Recommended)
 
-### Installation
+### 1. Clone the Repository
 
-1.  **Clone the repository:**
-    ```sh
-    git clone https://github.com/TonyGLL/gofetch
-    cd gofetch
-    ```
+```sh
+git clone https://github.com/TonyGLL/gofetch
+cd gofetch
+```
 
-2.  **Install dependencies:**
-    ```sh
-    go mod download
-    ```
+### 2. Configuration
 
-### Configuration
+`gofetch` uses a `config.yaml` file for configuration, supplemented by environment variables.
 
-The application uses environment variables for configuration. You can set them in a `.env` file or export them in your shell.
+**A. Create a `config.yaml` file:**
 
--   `MONGODB_URI`: The MongoDB connection string. Default: `mongodb://localhost:27017`
--   `DB_NAME`: The name of the database to use. Default: `gofetch`
--   `ANALYZER_LANGUAGE`: The language for the text analyzer. Supported values: `english`, `spanish`. Default: `english`
+You can copy the example file:
 
-## Usage
+```sh
+cp config.yaml.example config.yaml
+```
 
-### 1. Indexing Content
+**B. Configure your environment:**
 
-The indexer crawls a specified directory, processes the files, and builds the search index.
+The following variables can be set in your `config.yaml` or as environment variables:
 
-To run the indexer:
+| Variable            | Description                                | Default                      |
+| ------------------- | ------------------------------------------ | ---------------------------- |
+| `MONGODB_URI`       | MongoDB connection string.                 | `mongodb://localhost:27017`  |
+| `DB_NAME`           | The name of the database.                  | `gofetch`                    |
+| `ANALYZER_LANGUAGE` | Language for text analysis (`english` or `spanish`). | `english`                    |
+| `INDEXER_PATH`      | The directory path to index.               | `./data`                     |
+| `SERVER_PORT`       | The port for the API server.               | `8080`                       |
+
+### 3. Build and Run with Docker (Recommended)
+
+The simplest way to get `gofetch` running is with Docker Compose.
+
+```sh
+docker-compose up --build
+```
+
+This command will:
+1.  Build the `gofetch` Docker image.
+2.  Start the search server and a MongoDB container.
+3.  Mount the source code for live-reloading on changes.
+
+The API will be available at `http://localhost:8080`.
+
+### 4. Build and Run Manually
+
+**A. Install Dependencies:**
+
+```sh
+go mod download
+```
+
+**B. Run the Indexer:**
+
+To populate the search index, run the indexer and point it to the directory you want to scan.
 
 ```sh
 go run cmd/indexer/main.go --path=./data
 ```
 
-This will index all `.txt` and `.md` files in the `data` directory.
+**C. Run the API Server:**
 
-### 2. Running the Search Server
-
-The search server provides an API to query the indexed content.
-
-To start the server:
+Once indexing is complete, start the server.
 
 ```sh
 go run cmd/server/main.go
@@ -65,86 +109,91 @@ go run cmd/server/main.go
 
 The server will be available at `http://localhost:8080`.
 
-### 3. Using the Search UI
+## Usage
 
-Once the server is running, you can use the web interface to search:
+### Search UI
 
-1.  Open your browser and navigate to `http://localhost:8080/`.
-2.  The project's `index.html` file will be served, allowing you to enter search queries.
+Navigate to `http://localhost:8080` in your browser to use the simple web interface for searching.
 
-## API Endpoints
+### API Endpoints
 
-### Search
+#### Search for Documents
 
 -   **Endpoint:** `/api/v1/search`
 -   **Method:** `GET`
 -   **Query Parameters:**
-    -   `q`: The search query.
--   **Example:**
+    -   `q` (string, required): The search query.
+-   **Example Request:**
+
     ```sh
     curl "http://localhost:8080/api/v1/search?q=hello+world"
     ```
--   **Response:**
+
+-   **Example Success Response (`200 OK`):**
+
     ```json
     [
         {
-            "docID": "635f2a4b2f8e4b1e3e3e3e3e",
-            "title": "Hello World",
-            "url": "data/hello.txt"
+            "Score": 0.6931471805599453,
+            "Document": {
+                "ID": "635f2a4b2f8e4b1e3e3e3e3e",
+                "Title": "Hello World",
+                "URL": "data/hello.txt",
+                "IndexedAt": "2023-10-27T10:00:00Z",
+                "Content": "This is the content of the hello world file."
+            }
         }
     ]
     ```
 
 ## Project Structure
 
+The project follows a standard Go layout to maintain a clean and scalable architecture.
+
 ```
 .
-├── cmd/
-│   ├── indexer/  # Indexer application
-│   └── server/   # Search server application
-├── internal/
-│   ├── analysis/ # Text analysis (tokenization, stemming)
-│   ├── crawler/  # Web crawler (future feature)
-│   ├── indexer/  # Indexing logic
-│   ├── ranking/  # Search result ranking (TF-IDF)
-│   ├── search/   # Search logic
-│   ├── server/   # Web server implementation (handlers, router)
-│   └── storage/  # MongoDB storage
-├── pkg/
-│   └── ...       # Shared packages
-├── ui/
-│   ├── index.html # Frontend search page
-│   └── script.js  # Frontend JavaScript
-├── Makefile      # Development commands
-└── Dockerfile    # Docker configuration
+├── cmd/                # Application entry points
+│   ├── indexer/        # Main package for the indexer binary
+│   └── server/         # Main package for the API server binary
+├── internal/           # Private application logic
+│   ├── analysis/       # Text analysis (tokenization, stemming, etc.)
+│   ├── builder/        # Dependency injection builders
+│   ├── config/         # Configuration management (Viper)
+│   ├── indexer/        # Core indexing logic and pipeline
+│   ├── ranking/        # Search result ranking algorithms (TF-IDF)
+│   ├── search/         # Core search logic
+│   ├── server/         # Web server, handlers, and routing
+│   └── storage/        # MongoDB interaction and data models
+├── pkg/                # Public libraries (currently none)
+├── ui/                 # Frontend static files (HTML, JS)
+├── .github/            # GitHub Actions workflows
+├── Makefile            # Development and automation commands
+└── Dockerfile          # Docker build configuration
 ```
 
-## Development with Docker
+## Development
 
-The project includes a `docker-compose.yaml` file for a consistent development environment.
+### Makefile Commands
 
-1.  **Start the environment:**
-    ```sh
-    docker-compose up --build
-    ```
-    This will build the Go application image, start the application and MongoDB containers, and mount the source code for live reloading.
+The `Makefile` contains helpful commands for development:
 
-2.  **Access services:**
-    -   **API Server:** `http://localhost:8080`
-    -   **MongoDB:** `mongodb://admin:password@localhost:27017`
-
-3.  **Stop the environment:**
-    ```sh
-    docker-compose down
-    ```
-
-## Makefile Commands
-
-The `Makefile` provides useful commands for common development tasks:
-
--   `make lint`: Run the linter to analyze the code.
--   `make test`: Run all project tests.
--   `make test-coverage`: Generate a test coverage report.
+-   `make lint`: Run the Go linter to check for code style and errors.
+-   `make test`: Run all unit and integration tests.
+--   `make test-coverage`: Generate a test coverage report.
 -   `make build-indexer`: Compile the indexer binary.
--   `make run-indexer`: Run the indexer on the `data/` directory.
--   `make watch`: Start the application in development mode with live reloading (`air`).
+-   `make run-indexer`: Run the indexer on the default `data/` directory.
+-   `make watch`: Start the API server in development mode with live reloading (`air`).
+
+### Contributing
+
+Contributions are welcome! Please feel free to open an issue or submit a pull request.
+
+1.  Fork the repository.
+2.  Create your feature branch (`git checkout -b feature/my-new-feature`).
+3.  Commit your changes (`git commit -am 'Add some feature'`).
+4.  Push to the branch (`git push origin feature/my-new-feature`).
+5.  Open a new Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
