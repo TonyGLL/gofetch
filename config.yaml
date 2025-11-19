@@ -1,0 +1,14 @@
+# Configuración de gofetch
+
+mongo_uri: 'mongodb://admin:password@localhost:27017/gofetch?authSource=admin'
+db_name: 'gofetch'
+
+server_port: 8080
+
+crawler:
+  urls:
+    - 'https://go.dev'
+  max_depth: 1
+
+indexer:
+  path: 'data'

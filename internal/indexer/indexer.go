@@ -13,7 +13,7 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/TonyGLL/gofetch/internal/analysis"
-	"github.com/TonyGLL/gofetch/internal/storage"
+	"github.com/TonyGLL/gofetch/pkg/storage"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

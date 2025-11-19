@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -28,17 +27,17 @@ type GetDocumentsFilter struct {
 
 // NewMongoStore is a constructor function that initializes an instance of MongoStore.
 // The actual connection is established through the Connect() method.
-func NewMongoStore() *MongoStore {
-	return &MongoStore{}
+func NewMongoStore(ctx context.Context, mongoURI, dbName string) (*MongoStore, error) {
+	s := &MongoStore{}
+	if err := s.Connect(ctx, mongoURI, dbName); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 // Connect establishes the connection with MongoDB using a URI from an environment variable.
 // It also performs a ping to verify the connection and prepares the collection handlers.
-func (s *MongoStore) Connect(ctx context.Context) error {
-	// Detailed logic for:
-	// 1. Read os.Getenv("MONGO_URI")
-	mongoURI := os.Getenv("MONGODB_URI")
-	dbName := os.Getenv("DB_NAME")
+func (s *MongoStore) Connect(ctx context.Context, mongoURI, dbName string) error {
 	if dbName == "" {
 		dbName = "gofetch"
 	}

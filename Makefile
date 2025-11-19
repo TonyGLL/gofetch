@@ -53,11 +53,6 @@ run-indexer: build-indexer ## Builds and runs the binary.
 	@echo "==> Running the application..."
 	@$(OUTPUT_DIR)/$(BINARY_NAME) -path=data
 
-build-crawler: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
-	@echo "==> Compiling binary..."
-	@mkdir -p $(OUTPUT_DIR)
-	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/$(BINARY_NAME) cmd/crawler/main.go
-
 build-server: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
 	@echo "==> Compiling binary..."
 	@mkdir -p $(OUTPUT_DIR)
@@ -66,6 +61,11 @@ build-server: tidy ## Compiles the source code and creates the binary in $(OUTPU
 run-server: build-server ## Builds and runs the binary.
 	@echo "==> Running the application..."
 	@$(OUTPUT_DIR)/$(BINARY_NAME)
+
+build-crawler: tidy ## Compiles the source code and creates the binary in $(OUTPUT_DIR).
+	@echo "==> Compiling binary..."
+	@mkdir -p $(OUTPUT_DIR)
+	$(GO) build $(GOFLAGS) -ldflags="$(LDFLAGS)" -o $(OUTPUT_DIR)/$(BINARY_NAME) cmd/crawler/main.go
 
 run-crawler: build-crawler ## Builds and runs the binary.
 	@echo "==> Running the application..."

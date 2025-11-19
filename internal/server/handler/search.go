@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/TonyGLL/gofetch/internal/search"
-	"github.com/TonyGLL/gofetch/internal/storage"
+	"github.com/TonyGLL/gofetch/pkg/storage"
 )
 
 // Search is the handler for the search endpoint.
