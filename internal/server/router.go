@@ -5,24 +5,28 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/TonyGLL/gofetch/internal/analysis"
+	"github.com/TonyGLL/gofetch/internal/builder"
+	"github.com/TonyGLL/gofetch/internal/config"
 	"github.com/TonyGLL/gofetch/internal/search"
 	"github.com/TonyGLL/gofetch/internal/server/handler"
 	"github.com/TonyGLL/gofetch/internal/server/middleware"
-	"github.com/TonyGLL/gofetch/internal/storage"
 )
 
 func NewRouter() *http.ServeMux {
 	// --- Dependency Injection ---
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Error loading configuration: %v", err)
+	}
 
 	// 1. Create and connect to the database store.
-	store := storage.NewMongoStore()
-	if err := store.Connect(context.Background()); err != nil {
+	store, err := builder.NewMongoStore(context.Background(), cfg)
+	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
 
 	// 2. Create the analyzer.
-	analyzer := analysis.NewFromEnv()
+	analyzer := builder.NewAnalyzer()
 
 	// 3. Create the searcher with its dependencies.
 	searcher := search.NewSearcher(analyzer, store)

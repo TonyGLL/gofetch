@@ -3,21 +3,26 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/TonyGLL/gofetch/internal/analysis"
+	"github.com/TonyGLL/gofetch/internal/builder"
+	"github.com/TonyGLL/gofetch/internal/config"
 	"github.com/TonyGLL/gofetch/internal/crawler"
-	"github.com/TonyGLL/gofetch/internal/indexer"
-	"github.com/TonyGLL/gofetch/internal/storage"
 )
 
 func main() {
 	start := time.Now()
 
-	store := storage.NewMongoStore()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Error loading configuration: %v", err)
+	}
+
 	ctx := context.Background()
-	if err := store.Connect(ctx); err != nil {
-		panic(err)
+	store, err := builder.NewMongoStore(ctx, cfg)
+	if err != nil {
+		log.Fatalf("Error creating MongoStore: %v", err)
 	}
 	defer func() {
 		if err := store.Disconnect(ctx); err != nil {
@@ -25,15 +30,17 @@ func main() {
 		}
 	}()
 
-	an := analysis.NewEnglishAnalyzer()
-	idx := indexer.NewIndexer(an, store)
+	an := builder.NewAnalyzer()
+	idx := builder.NewIndexer(an, store)
 
 	// Application entry point
-	depth := 1
 	fmt.Println("Crawler application started")
-	crawlerInst := crawler.NewCrawler([]string{
-		"https://go.dev/",
-	}, depth, idx, ctx)
+	crawlerInst := crawler.NewCrawler(
+		cfg.Crawler.URLs,
+		cfg.Crawler.MaxDepth,
+		idx,
+		ctx,
+	)
 
 	crawlerInst.Crawl()
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/TonyGLL/gofetch/internal/analysis"
 	"github.com/TonyGLL/gofetch/internal/ranking"
-	"github.com/TonyGLL/gofetch/internal/storage"
+	"github.com/TonyGLL/gofetch/pkg/storage"
 )
 
 // Searcher defines the interface for searching documents.

@@ -2,19 +2,23 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
+	"log"
 
-	"github.com/TonyGLL/gofetch/internal/analysis"
-	"github.com/TonyGLL/gofetch/internal/indexer"
-	"github.com/TonyGLL/gofetch/internal/storage"
+	"github.com/TonyGLL/gofetch/internal/builder"
+	"github.com/TonyGLL/gofetch/internal/config"
 )
 
 func main() {
-	store := storage.NewMongoStore()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Error loading configuration: %v", err)
+	}
+
 	ctx := context.Background()
-	if err := store.Connect(ctx); err != nil {
-		panic(err)
+	store, err := builder.NewMongoStore(ctx, cfg)
+	if err != nil {
+		log.Fatalf("Error creating MongoStore: %v", err)
 	}
 	defer func() {
 		if err := store.Disconnect(ctx); err != nil {
@@ -22,12 +26,9 @@ func main() {
 		}
 	}()
 
-	args := flag.String("path", "data/index", "Path to store the index data")
-	flag.Parse()
-
-	an := analysis.NewFromEnv()
-	idx := indexer.NewIndexer(an, store)
-	if err := idx.IndexDirectory(*args); err != nil {
+	an := builder.NewAnalyzer()
+	idx := builder.NewIndexer(an, store)
+	if err := idx.IndexDirectory(cfg.Indexer.Path); err != nil {
 		fmt.Printf("Index error: %v\n", err)
 	} else {
 		fmt.Println("Indexing completed OK")

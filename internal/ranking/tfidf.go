@@ -3,7 +3,7 @@ package ranking
 import (
 	"math"
 
-	"github.com/TonyGLL/gofetch/internal/storage"
+	"github.com/TonyGLL/gofetch/pkg/storage"
 )
 
 // TFIDFScorer calculates scores based on the TF-IDF algorithm.
